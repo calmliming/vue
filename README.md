@@ -1,108 +1,400 @@
-<p align="center"><a href="https://vuejs.org" target="_blank" rel="noopener noreferrer"><img width="100" src="https://vuejs.org/images/logo.png" alt="Vue logo"></a></p>
+# 源码阅读
 
-<p align="center">
-  <a href="https://circleci.com/gh/vuejs/vue/tree/dev"><img src="https://img.shields.io/circleci/project/github/vuejs/vue/dev.svg?sanitize=true" alt="Build Status"></a>
-  <a href="https://codecov.io/github/vuejs/vue?branch=dev"><img src="https://img.shields.io/codecov/c/github/vuejs/vue/dev.svg?sanitize=true" alt="Coverage Status"></a>
-  <a href="https://npmcharts.com/compare/vue?minimal=true"><img src="https://img.shields.io/npm/dm/vue.svg?sanitize=true" alt="Downloads"></a>
-  <a href="https://www.npmjs.com/package/vue"><img src="https://img.shields.io/npm/v/vue.svg?sanitize=true" alt="Version"></a>
-  <a href="https://www.npmjs.com/package/vue"><img src="https://img.shields.io/npm/l/vue.svg?sanitize=true" alt="License"></a>
-  <a href="https://chat.vuejs.org/"><img src="https://img.shields.io/badge/chat-on%20discord-7289da.svg?sanitize=true" alt="Chat"></a>
-</p>
+## 1.找到入口
 
-## This repo is for Vue 2
+首先通过`package.json`了解其依赖和其`script`命令
+找到一个打包命令`"build": "node scripts/build.js",`
+然后去看`script/build.js`
+....
+最后找到 `rollup`打包入口
 
-You are looking at the repository for Vue 2. The repo for Vue 3 is [vuejs/core](https://github.com/vuejs/core).
+```js
+ // Runtime only ES modules build (for bundlers)
+'web-runtime-esm': {
+    entry: resolve('web/entry-runtime.js'),
+    dest: resolve('dist/vue.runtime.esm.js'),
+    format: 'es',
+    banner
+  },
+```
 
-## Sponsors
+## 2.从入口解读
 
-Vue.js is an MIT-licensed open source project with its ongoing development made possible entirely by the support of these awesome [backers](https://github.com/vuejs/core/blob/main/BACKERS.md). If you'd like to join them, please consider [ sponsor Vue's development](https://vuejs.org/sponsor/).
+- `src/platforms/web/entry-runtime.js`
 
-<p align="center">
-  <a target="_blank" href="https://vuejs.org/sponsor/#current-sponsors">
-    <img alt="sponsors" src="https://sponsors.vuejs.org/sponsors.svg">
-  </a>
-</p>
+```js
+import Vue from './runtime/index'
+export default Vue
+```
 
----
+- `src/platforms/web/entry-runtime.js`
 
-## Introduction
+```js
+import Vue from 'core/index'
+// ...
+// 下面代码 对原型上的方法进行了挂载，此时先忽略，整理出主线
+```
 
-Vue (pronounced `/vjuː/`, like view) is a **progressive framework** for building user interfaces. It is designed from the ground up to be incrementally adoptable, and can easily scale between a library and a framework depending on different use cases. It consists of an approachable core library that focuses on the view layer only, and an ecosystem of supporting libraries that helps you tackle complexity in large Single-Page Applications.
+- `src/core/index.js`
 
-#### Browser Compatibility
+```js
+import Vue from './instance/index'
+import {initGlobalAPI} from './global-api/index'
+initGlobalAPI(Vue) // 初始化全局API
+// ... 挂载
+export default Vue
+```
 
-Vue.js supports all browsers that are [ES5-compliant](https://kangax.github.io/compat-table/es5/) (IE8 and below are not supported).
+- `src/core/instance/index.js`  
+  先声明 VUE 构造函数，然后值传递，在其他函数内部中挂载方法
 
-## Ecosystem
+```js
+import {initMixin} from './init'
+import {stateMixin} from './state'
+import {renderMixin} from './render'
+import {eventsMixin} from './events'
+import {lifecycleMixin} from './lifecycle'
+import {warn} from '../util/index'
 
-| Project               | Status                                                       | Description                                             |
-| --------------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| [vue-router]          | [![vue-router-status]][vue-router-package]                   | Single-page application routing                         |
-| [vuex]                | [![vuex-status]][vuex-package]                               | Large-scale state management                            |
-| [vue-cli]             | [![vue-cli-status]][vue-cli-package]                         | Project scaffolding                                     |
-| [vue-loader]          | [![vue-loader-status]][vue-loader-package]                   | Single File Component (`*.vue` file) loader for webpack |
-| [vue-server-renderer] | [![vue-server-renderer-status]][vue-server-renderer-package] | Server-side rendering support                           |
-| [vue-class-component] | [![vue-class-component-status]][vue-class-component-package] | TypeScript decorator for a class-based API              |
-| [vue-rx]              | [![vue-rx-status]][vue-rx-package]                           | RxJS integration                                        |
-| [vue-devtools]        | [![vue-devtools-status]][vue-devtools-package]               | Browser DevTools extension                              |
+function Vue(options) {
+  this._init(options)
+}
 
-[vue-router]: https://github.com/vuejs/vue-router
-[vuex]: https://github.com/vuejs/vuex
-[vue-cli]: https://github.com/vuejs/vue-cli
-[vue-loader]: https://github.com/vuejs/vue-loader
-[vue-server-renderer]: https://github.com/vuejs/vue/tree/dev/packages/vue-server-renderer
-[vue-class-component]: https://github.com/vuejs/vue-class-component
-[vue-rx]: https://github.com/vuejs/vue-rx
-[vue-devtools]: https://github.com/vuejs/vue-devtools
-[vue-router-status]: https://img.shields.io/npm/v/vue-router.svg
-[vuex-status]: https://img.shields.io/npm/v/vuex.svg
-[vue-cli-status]: https://img.shields.io/npm/v/@vue/cli.svg
-[vue-loader-status]: https://img.shields.io/npm/v/vue-loader.svg
-[vue-server-renderer-status]: https://img.shields.io/npm/v/vue-server-renderer.svg
-[vue-class-component-status]: https://img.shields.io/npm/v/vue-class-component.svg
-[vue-rx-status]: https://img.shields.io/npm/v/vue-rx.svg
-[vue-devtools-status]: https://img.shields.io/chrome-web-store/v/nhdogjmejiglipccpnnnanhbledajbpd.svg
-[vue-router-package]: https://npmjs.com/package/vue-router
-[vuex-package]: https://npmjs.com/package/vuex
-[vue-cli-package]: https://npmjs.com/package/@vue/cli
-[vue-loader-package]: https://npmjs.com/package/vue-loader
-[vue-server-renderer-package]: https://npmjs.com/package/vue-server-renderer
-[vue-class-component-package]: https://npmjs.com/package/vue-class-component
-[vue-rx-package]: https://npmjs.com/package/vue-rx
-[vue-devtools-package]: https://chrome.google.com/webstore/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd
+initMixin(Vue)
+stateMixin(Vue)
+eventsMixin(Vue)
+lifecycleMixin(Vue)
+renderMixin(Vue)
 
-## Documentation
+export default Vue
+```
 
-To check out [live examples](https://vuejs.org/v2/examples/) and docs, visit [vuejs.org](https://vuejs.org).
+## 3.`initMixin`
 
-## Questions
+挂载一个 `_init`方法
 
-For questions and support please use [the official forum](https://forum.vuejs.org) or [community chat](https://chat.vuejs.org/). The issue list of this repo is **exclusively** for bug reports and feature requests.
+- 'src/core/instance/index.js
 
-## Issues
+```js
+export function initMixin(Vue: Class<Component>) {
+  Vue.prototype._init = function(options?: Object) {
+    const vm: Component = this
+    // a uid
+    vm._uid = uid++
 
-Please make sure to read the [Issue Reporting Checklist](https://github.com/vuejs/vue/blob/dev/.github/CONTRIBUTING.md#issue-reporting-guidelines) before opening an issue. Issues not conforming to the guidelines may be closed immediately.
+    let startTag, endTag
+    /* istanbul ignore if */
+    if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
+      startTag = `vue-perf-start:${vm._uid}`
+      endTag = `vue-perf-end:${vm._uid}`
+      mark(startTag)
+    }
 
-## Changelog
+    // 一个用来避免被观察的标志
+    vm._isVue = true
+    // 合并选项
+    if (options && options._isComponent) {
+      // 优化内部组件实例化
+      // 因为动态选项合并非常慢，而且没有
+      // 内部组件选项需要特殊处理
+      initInternalComponent(vm, options)
+    } else {
+      vm.$options = mergeOptions(
+        resolveConstructorOptions(vm.constructor),
+        options || {},
+        vm
+      )
+    }
+    /* istanbul ignore else */
+    if (process.env.NODE_ENV !== 'production') {
+      initProxy(vm)
+    } else {
+      vm._renderProxy = vm
+    }
+    // expose real self
+    vm._self = vm
+    initLifecycle(vm)
+    initEvents(vm)
+    initRender(vm)
+    callHook(vm, 'beforeCreate')
+    initInjections(vm) // resolve injections before data/props
+    initState(vm)
+    initProvide(vm) // resolve provide after data/props
+    callHook(vm, 'created')
 
-Detailed changes for each release are documented in the [release notes](https://github.com/vuejs/vue/releases).
+    /* istanbul ignore if */
+    if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
+      vm._name = formatComponentName(vm, false)
+      mark(endTag)
+      measure(`vue ${vm._name} init`, startTag, endTag)
+    }
 
-## Stay In Touch
+    if (vm.$options.el) {
+      // 挂载方法
+      vm.$mount(vm.$options.el)
+    }
+  }
+}
+```
 
-- [Twitter](https://twitter.com/vuejs)
-- [Blog](https://medium.com/the-vue-point)
-- [Job Board](https://vuejobs.com/?ref=vuejs)
+## 4. new Vue
 
-## Contribution
+首先传入一个 对象 `{ el: '#app', router, store, template: '<App/>', components: { App } }`
 
-Please make sure to read the [Contributing Guide](https://github.com/vuejs/vue/blob/dev/.github/CONTRIBUTING.md) before making a pull request. If you have a Vue-related project/component/tool, add it with a pull request to [this curated list](https://github.com/vuejs/awesome-vue)!
+### VUE 根实例
 
-Thank you to all the people who already contributed to Vue!
+![VUE根实例](./imgs/vue_instance.jpg)
 
-<a href="https://github.com/vuejs/vue/graphs/contributors"><img src="https://opencollective.com/vuejs/contributors.svg?width=890" /></a>
+### VUE Compoent 实例
 
-## License
+隐式原型指向 VUE 实例
+![VUE根实例](./imgs/vue_instance.jpg)
 
-[MIT](https://opensource.org/licenses/MIT)
+...
+初步目标
 
-Copyright (c) 2013-present, Yuxi (Evan) You
+## 响应式数据
+
+1. `Dep` 发布订阅
+
+```js
+export default class Dep {
+  static target: ?Watcher
+  id: number
+  subs: Array<Watcher>
+
+  constructor() {
+    this.id = uid++
+    this.subs = []
+  }
+
+  addSub(sub: Watcher) {
+    this.subs.push(sub)
+  }
+
+  removeSub(sub: Watcher) {
+    remove(this.subs, sub)
+  }
+
+  depend() {
+    if (Dep.target) {
+      Dep.target.addDep(this)
+    }
+  }
+
+  notify() {
+    // stabilize the subscriber list first
+    const subs = this.subs.slice()
+    if (process.env.NODE_ENV !== 'production' && !config.async) {
+      // subs aren't sorted in scheduler if not running async
+      // we need to sort them now to make sure they fire in correct
+      // order
+      subs.sort((a, b) => a.id - b.id)
+    }
+    for (let i = 0, l = subs.length; i < l; i++) {
+      subs[i].update()
+    }
+  }
+}
+```
+
+2. `def` 定义数据 / 冻结数据
+
+```js
+/**
+ * Define a property.
+ */
+export function def(obj: Object, key: string, val: any, enumerable?: boolean) {
+  Object.defineProperty(obj, key, {
+    value: val, // 值
+    enumerable: !!enumerable, // 是否枚举
+    writable: true, // 可写,默认是false
+    configurable: true, //  属性描述符能够被改变，同时该属性也能从对应的对象上被删除。默认为 false。
+  })
+}
+```
+
+3. `Observer` 类
+
+```js
+/**
+ * 附加到每个被观察对象的观察者类
+ * 对象。一旦附加，观察者将转换目标
+ * 对象的属性键转换为getter/setter
+ * 收集依赖项并分派更新。
+ */
+export class Observer {
+  value: any
+  dep: Dep
+  vmCount: number // 将此对象作为根$data的vm数量
+
+  constructor(value: any) {
+    this.value = value
+    this.dep = new Dep()
+    this.vmCount = 0
+    // object.defineproperty(value,'__ob__',this)
+    def(value, '__ob__', this)
+    if (Array.isArray(value)) {
+      // 数组处理
+      if (hasProto) {
+        // '__proto__' in {}
+        // value.__proto__ = arrayMethods 修改隐士原型
+        protoAugment(value, arrayMethods)
+      } else {
+        // def(value, arrayMethods, ...arrayKeys) // 给数据keys 统一加一个订阅
+        copyAugment(value, arrayMethods, arrayKeys)
+      }
+      // observe(items[i])
+      this.observeArray(value)
+    } else {
+      // 对象的处理
+      this.walk(value)
+      // const keys = Object.keys(value)
+      // defineReactive(obj, ...keys)
+    }
+  }
+
+  /**
+   * Walk through all properties and convert them into
+   * getter/setters. This method should only be called when
+   * value type is Object.
+   */
+  walk(obj: Object) {
+    const keys = Object.keys(obj)
+    for (let i = 0; i < keys.length; i++) {
+      defineReactive(obj, keys[i])
+    }
+  }
+
+  /**
+   * Observe a list of Array items.
+   */
+  observeArray(items: Array<any>) {
+    for (let i = 0, l = items.length; i < l; i++) {
+      observe(items[i])
+    }
+  }
+}
+```
+
+
+4. `ovserve` 创建一个观察者实例
+
+```js
+
+
+/**
+ * 尝试为值创建一个观察者实例，
+ * 如果成功观察到，返回新的观察者，
+ * 或现有的观察者，如果值已经有一个。
+ * value 观察者源 是否根节点  返回 ovserver 或 void
+ */
+export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 如果不是对象或者 源 是 vnode 则直接返回
+  if (!isObject(value) || value instanceof VNode) return
+  let ob: Observer | void
+  // 如果存在于响应式 对象 则直接赋值
+  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
+    ob = value.__ob__
+  } else if (
+    // 需要更新 && 非服务端渲染 
+    // 数组 或者 浅层对象
+    // 对象是否是可拓展
+    shouldObserve && !isServerRendering() &&
+    (Array.isArray(value) || isPlainObject(value)) &&
+    Object.isExtensible(value) &&
+    !value._isVue
+  ) {
+    ob = new Observer(value)
+  }
+  if (asRootData && ob) {
+    ob.vmCount++
+  }
+  return ob
+}
+```
+
+
+5. `defineReactive` 在对象上定义响应性属性
+```js
+/**
+ * Define a reactive property on an Object.
+ * 在对象上定义反应性属性。
+ * // obj key  value 自定义设置函数 是否浅层对象
+ */
+export function defineReactive (
+  obj: Object,
+  key: string,
+  val: any,
+  customSetter?: ?Function,
+  shallow?: boolean
+) {
+  const dep = new Dep()
+  /***
+   * Object.getOwnPropertyDescriptor() 
+   * 返回对象上一个自有属性对应的属性描述符。
+   *（自有属性指的是直接赋予该对象的属性，不需要从原型链上进行查找的属性）
+   */
+  const property = Object.getOwnPropertyDescriptor(obj, key)
+  if (property && property.configurable === false) {
+    return
+    // 如果不能被改变，直接 void
+  }
+
+  // cater for pre-defined getter/setters
+  // 满足预定义的getter/setter
+  const getter = property && property.get
+  const setter = property && property.set
+  // 如果没有给val 返回 原 val
+  if ((!getter || setter) && arguments.length === 2) {
+    val = obj[key]
+  }
+
+  // 是否是 非浅层 且直接 创建一个响应式 对象
+  let childOb = !shallow && observe(val)
+  Object.defineProperty(obj, key, {
+    enumerable: true,
+    configurable: true,
+    get: function reactiveGetter () {
+      const value = getter ? getter.call(obj) : val
+      if (Dep.target) {
+        // 如果有 watch 触发watch 
+        dep.depend()
+        if (childOb) { // 如果是深层级，给 深层级的对象也触发 发布
+          childOb.dep.depend()
+          if (Array.isArray(value)) {
+            // 数组递归触发 发布
+            dependArray(value)
+          }
+        }
+      }
+      return value
+    },
+    set: function reactiveSetter (newVal) {
+      // 原值
+      const value = getter ? getter.call(obj) : val
+      /* eslint-disable no-self-compare */
+      // 值不变 不做变更
+      if (newVal === value || (newVal !== newVal && value !== value)) {
+        return
+      }
+      /* eslint-enable no-self-compare */
+      if (process.env.NODE_ENV !== 'production' && customSetter) {
+        customSetter()
+      }
+      // #7981: for accessor properties without setter
+      if (getter && !setter) return
+      if (setter) {
+        setter.call(obj, newVal)
+      } else {
+        val = newVal
+      }
+      // 如果是深层级 ，再做一下响应式处理，如果有原响应对象，则 VMCount ++ 
+      childOb = !shallow && observe(newVal)
+      dep.notify() // 给订阅者 发布
+    }
+  })
+}
+```
+
+## VDOM
